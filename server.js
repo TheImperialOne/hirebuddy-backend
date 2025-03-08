@@ -9,9 +9,9 @@ const app = express();
 
 // ✅ Enable CORS for frontend requests
 app.use(cors({
-    origin: "http://localhost:3000", // Allow React frontend
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
-    credentials: true // If using cookies or authentication headers
+    origin: "*", // Allows all origins (not recommended for production)
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
 }));
 
 app.use(express.json());
