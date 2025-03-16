@@ -27,7 +27,6 @@ const jobSchema = new mongoose.Schema(
                 required: { type: Boolean, default: true },
             },
         ],
-        resume: { type: String, required: true }, // Store resume as a URL
     },
     { timestamps: true }
 );

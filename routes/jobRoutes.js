@@ -1,29 +1,13 @@
 import express from "express";
 import Job from "../models/Job.js";
-import multer from "multer";
 
 const router = express.Router();
 
-// 🔹 Setup Multer for Resume Uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/resumes/"); // Store resumes in 'uploads/resumes/' folder
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname); // Unique filename
-  },
-});
-
-const upload = multer({ storage });
-
-// 🟢 Create a Job (With Resume Upload)
-router.post("/", upload.single("resume"), async (req, res) => {
+// 🟢 Create a Job (Without Resume Upload)
+router.post("/", async (req, res) => {
   try {
-    const resumeUrl = req.file ? `/uploads/resumes/${req.file.filename}` : null;
-
     const newJob = new Job({
       ...req.body,
-      resume: resumeUrl,
     });
 
     await newJob.save();
@@ -55,14 +39,12 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 🟡 Update a Job (With Resume Upload)
-router.put("/:id", upload.single("resume"), async (req, res) => {
+// 🟡 Update a Job (Without Resume Upload)
+router.put("/:id", async (req, res) => {
   try {
-    const resumeUrl = req.file ? `/uploads/resumes/${req.file.filename}` : null;
-
     const updatedJob = await Job.findByIdAndUpdate(
         req.params.id,
-        { ...req.body, resume: resumeUrl || req.body.resume },
+        { ...req.body },
         { new: true, runValidators: true }
     );
 
