@@ -10,7 +10,7 @@ const jobSchema = new mongoose.Schema(
             max: { type: Number, required: true },
             currency: { type: String, default: "INR" },
         },
-        jobType: { type: [String], required: true }, // ["Full-time", "Permanent"]
+        jobType: { type: String, required: true }, // ["Full-time", "Permanent"]
         shift: { type: String, default: "Day shift" },
         description: { type: String, required: true },
         keySkills: { type: [String], required: true },
