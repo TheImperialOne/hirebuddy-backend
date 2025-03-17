@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import JobApplication from "../models/JobApplication.js";
+import Job from "../models/Job.js"; // Import Job model to fetch custom questions
 
 const router = express.Router();
 
@@ -34,7 +35,8 @@ const upload = multer({
 // 🟢 Apply for a job
 router.post("/apply", upload.single("resume"), async (req, res) => {
     try {
-        const { candidateId, jobId, firstName, lastName, email, coverLetter } = req.body;
+        const { candidateId, jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } =
+            req.body;
 
         // Check if the candidate has already applied
         const existingApplication = await JobApplication.findOne({ candidateId, jobId });
@@ -47,6 +49,24 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             return res.status(400).json({ message: "Resume is required." });
         }
 
+        // Fetch the job to validate custom questions
+        const job = await Job.findById(jobId);
+        if (!job) {
+            return res.status(404).json({ message: "Job not found." });
+        }
+
+        // Validate custom questions (if any)
+        if (job.customQuestions && job.customQuestions.length > 0) {
+            const requiredQuestions = job.customQuestions.filter((q) => q.required);
+            for (const question of requiredQuestions) {
+                if (!customQuestionsAnswers || !customQuestionsAnswers[question.question]) {
+                    return res.status(400).json({
+                        message: `Missing answer for required question: ${question.question}`,
+                    });
+                }
+            }
+        }
+
         // Create a new job application
         const newApplication = new JobApplication({
             candidateId,
@@ -56,6 +76,7 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             email,
             resume: req.file.path, // Store file path
             coverLetter,
+            customQuestionsAnswers, // Store answers to custom questions
         });
 
         await newApplication.save();

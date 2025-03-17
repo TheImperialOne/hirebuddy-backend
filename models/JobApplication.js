@@ -2,8 +2,16 @@ import mongoose from "mongoose";
 
 const jobApplicationSchema = new mongoose.Schema(
     {
-        candidateId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Reference to the User collection
-        jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job", required: true }, // Reference to the Job collection
+        candidateId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        }, // Reference to the User collection
+        jobId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Job",
+            required: true,
+        }, // Reference to the Job collection
         resume: { type: String, required: true }, // Store resume file path
         coverLetter: { type: String, default: "" }, // Optional cover letter
         firstName: { type: String, required: true }, // Candidate's first name
@@ -12,9 +20,14 @@ const jobApplicationSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: ["Pending", "Reviewed", "Accepted", "Rejected"],
-            default: "Pending"
+            default: "Pending",
         },
         notes: { type: String, default: "" }, // HR can add review comments
+        customQuestionsAnswers: {
+            type: Map,
+            of: String,
+            default: {},
+        }, // Store answers to custom questions (if any)
     },
     { timestamps: true } // Auto-adds 'createdAt' & 'updatedAt'
 );
