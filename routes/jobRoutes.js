@@ -3,11 +3,39 @@ import Job from "../models/Job.js";
 
 const router = express.Router();
 
-// 🟢 Create a Job (Without Resume Upload)
+// 🟢 Create a Job
 router.post("/", async (req, res) => {
   try {
+    const {
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
+    } = req.body;
+
     const newJob = new Job({
-      ...req.body,
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
     });
 
     await newJob.save();
@@ -39,12 +67,42 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 🟡 Update a Job (Without Resume Upload)
+// 🟡 Update a Job
 router.put("/:id", async (req, res) => {
   try {
+    const {
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
+    } = req.body;
+
     const updatedJob = await Job.findByIdAndUpdate(
         req.params.id,
-        { ...req.body },
+        {
+          title,
+          company,
+          location,
+          pay,
+          jobType,
+          shift,
+          description,
+          keySkills,
+          requirements,
+          additionalInfo,
+          benefits,
+          customQuestions,
+          hrEmail,
+        },
         { new: true, runValidators: true }
     );
 

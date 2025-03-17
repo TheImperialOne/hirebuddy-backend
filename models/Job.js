@@ -27,6 +27,7 @@ const jobSchema = new mongoose.Schema(
                 required: { type: Boolean, default: true },
             },
         ],
+        hrEmail: { type: String, required: true }, // Add HR's email field
     },
     { timestamps: true }
 );

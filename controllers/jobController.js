@@ -1,15 +1,38 @@
 import Job from "../models/Job.js";
 
-// 🟢 Create a Job (Without Resume Upload)
+// 🟢 Create a Job
 export const createJob = async (req, res) => {
   try {
-    const { firstName, lastName, email, jobDetails } = req.body;
+    const {
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
+    } = req.body;
 
     const newJob = new Job({
-      firstName,
-      lastName,
-      email,
-      jobDetails,
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
     });
 
     await newJob.save();
@@ -40,12 +63,42 @@ export const getJobById = async (req, res) => {
   }
 };
 
-// 🟡 Update a Job (Without Resume Upload)
+// 🟡 Update a Job
 export const updateJob = async (req, res) => {
   try {
+    const {
+      title,
+      company,
+      location,
+      pay,
+      jobType,
+      shift,
+      description,
+      keySkills,
+      requirements,
+      additionalInfo,
+      benefits,
+      customQuestions,
+      hrEmail,
+    } = req.body;
+
     const updatedJob = await Job.findByIdAndUpdate(
         req.params.id,
-        { ...req.body },
+        {
+          title,
+          company,
+          location,
+          pay,
+          jobType,
+          shift,
+          description,
+          keySkills,
+          requirements,
+          additionalInfo,
+          benefits,
+          customQuestions,
+          hrEmail,
+        },
         { new: true, runValidators: true }
     );
 
