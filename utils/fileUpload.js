@@ -1,54 +1,66 @@
 import multer from "multer";
 import path from "path";
-import fs from "fs";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-// Configure storage for uploaded files
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = "uploads/resumes"; // Directory to store uploaded resumes
-        // Create the directory if it doesn't exist
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
+// Filebase credentials and configuration (Directly defined)
+const FILEBASE_ACCESS_KEY_ID=B5E83AB22FD7BF704F72
+const FILEBASE_SECRET_ACCESS_KEY=Kb3f9XTFUfNrlcxNS6UGqWiNUJNDKrBqxwf1pn9i
+const FILEBASE_BUCKET_NAME=hirebuddy-resumes
+const FILEBASE_REGION=ap-south-1
+const FILEBASE_ENDPOINT = "https://s3.filebase.com";
+
+// Configure S3 client for Filebase
+const s3Client = new S3Client({
+    region: "us-east-1",
+    endpoint: FILEBASE_ENDPOINT,
+    credentials: {
+        accessKeyId: FILEBASE_ACCESS_KEY_ID,
+        secretAccessKey: FILEBASE_SECRET_ACCESS_KEY,
     },
-    filename: (req, file, cb) => {
-        // Generate a unique filename for the uploaded file
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname); // Get file extension
-        cb(null, `resume-${uniqueSuffix}${ext}`);
-    },
+    forcePathStyle: true,
 });
 
-// File filter to allow only specific file types (e.g., PDF, DOC, DOCX)
+// Multer configuration (memory storage)
+const storage = multer.memoryStorage();
+
+// File filter to allow only PDF, DOC, DOCX
 const fileFilter = (req, file, cb) => {
     const allowedTypes = [".pdf", ".doc", ".docx"];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
-        cb(null, true); // Accept the file
+        cb(null, true);
     } else {
         cb(new Error("Invalid file type. Only PDF, DOC, and DOCX files are allowed."), false);
     }
 };
 
-// Configure multer with storage and file filter
+// Multer upload instance
 const upload = multer({
     storage,
     fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // Limit file size to 5MB
-    },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
-// Utility function to handle file upload
-const uploadFile = (file) => {
-    return new Promise((resolve, reject) => {
-        if (!file) {
-            reject(new Error("No file provided"));
-        } else {
-            resolve(file.path); // Return the file path
-        }
-    });
+// Function to upload file to Filebase
+const uploadFileToFilebase = async (file) => {
+    if (!file) throw new Error("No file provided");
+
+    const key = `resumes/${Date.now()}-${file.originalname}`;
+
+    const params = {
+        Bucket: FILEBASE_BUCKET_NAME,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+    };
+
+    try {
+        await s3Client.send(new PutObjectCommand(params));
+        return `https://${FILEBASE_BUCKET_NAME}.s3.filebase.com/${key}`;
+    } catch (err) {
+        console.error("Error uploading file to Filebase:", err);
+        throw new Error("Failed to upload file to Filebase.");
+    }
 };
 
-export { upload, uploadFile };
+export { upload, uploadFileToFilebase };

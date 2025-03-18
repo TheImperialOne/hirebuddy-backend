@@ -1,20 +1,23 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
+import path from "path"; // Import the path module
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js"; // Import Job model to fetch custom questions
 
 const router = express.Router();
 
-// 📂 Multer Configuration for Resume Uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/resumes/"); // Store resumes in "uploads/resumes/"
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`); // Unique file name
+// Configure AWS S3 client
+const s3Client = new S3Client({
+    region: process.env.AWS_REGION, // e.g., 'us-east-1'
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
 });
+
+// 📂 Multer Configuration for Memory Storage
+const storage = multer.memoryStorage(); // Store files in memory instead of disk
 
 const upload = multer({
     storage,
@@ -32,16 +35,40 @@ const upload = multer({
     },
 });
 
+// Utility function to upload file to S3
+const uploadFileToS3 = async (file) => {
+    if (!file) {
+        throw new Error("No file provided");
+    }
+
+    const key = `resumes/${Date.now()}-${file.originalname}`; // S3 object key (e.g., 'resumes/resume-123456789.pdf')
+
+    const params = {
+        Bucket: process.env.AWS_S3_BUCKET_NAME, // Your S3 bucket name
+        Key: key,
+        Body: file.buffer, // Use file.buffer from memory storage
+        ContentType: file.mimetype, // Set the content type (e.g., 'application/pdf')
+    };
+
+    try {
+        const command = new PutObjectCommand(params);
+        await s3Client.send(command); // Upload the file to S3
+        const fileUrl = `https://${params.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`; // Generate the S3 file URL
+        return fileUrl; // Return the S3 file URL
+    } catch (err) {
+        console.error("Error uploading file to S3:", err);
+        throw err;
+    }
+};
+
 // 🟢 Apply for a job
 router.post("/apply", upload.single("resume"), async (req, res) => {
     try {
-        const { candidateId, jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } =
-            req.body;
+        const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } = req.body;
 
-        // Check if the candidate has already applied
-        const existingApplication = await JobApplication.findOne({ candidateId, jobId });
-        if (existingApplication) {
-            return res.status(400).json({ message: "You have already applied for this job." });
+        // Check if required fields are present
+        if (!jobId || !firstName || !lastName || !email) {
+            return res.status(400).json({ message: "Missing required fields." });
         }
 
         // Ensure resume is uploaded
@@ -67,16 +94,18 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             }
         }
 
+        // Upload the resume to S3
+        const resumeUrl = await uploadFileToS3(req.file);
+
         // Create a new job application
         const newApplication = new JobApplication({
-            candidateId,
             jobId,
             firstName,
             lastName,
             email,
-            resume: req.file.path, // Store file path
+            resume: resumeUrl, // Store S3 file URL
             coverLetter,
-            customQuestionsAnswers, // Store answers to custom questions
+            customQuestionsAnswers: new Map(Object.entries(customQuestionsAnswers || {})), // Convert to Map
         });
 
         await newApplication.save();
@@ -94,9 +123,7 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
 // 🟢 Get all job applications
 router.get("/", async (req, res) => {
     try {
-        const applications = await JobApplication.find()
-            .populate("candidateId", "firstName lastName email")
-            .populate("jobId", "title company");
+        const applications = await JobApplication.find().populate("jobId", "title company");
 
         res.json(applications);
     } catch (error) {
@@ -108,9 +135,7 @@ router.get("/", async (req, res) => {
 // 🟢 Get a specific job application
 router.get("/:id", async (req, res) => {
     try {
-        const application = await JobApplication.findById(req.params.id)
-            .populate("candidateId", "firstName lastName email")
-            .populate("jobId", "title company");
+        const application = await JobApplication.findById(req.params.id).populate("jobId", "title company");
 
         if (!application) {
             return res.status(404).json({ message: "Application not found." });
