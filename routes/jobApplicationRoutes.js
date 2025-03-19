@@ -1,23 +1,31 @@
 import express from "express";
 import multer from "multer";
-import path from "path"; // Import the path module
+import path from "path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js"; // Import Job model to fetch custom questions
 
 const router = express.Router();
 
-// Configure AWS S3 client
+// 🔹 Filebase Configuration (Hardcoded Credentials)
+const FILEBASE_ACCESS_KEY_ID = "B5E83AB22FD7BF704F72";
+const FILEBASE_SECRET_ACCESS_KEY = "Kb3f9XTFUfNrlcxNS6UGqWiNUJNDKrBqxwf1pn9i";
+const FILEBASE_BUCKET_NAME = "hirebuddy-resumes";
+const FILEBASE_ENDPOINT = "https://s3.filebase.com";
+
+// 🔹 Configure Filebase S3 Client
 const s3Client = new S3Client({
-    region: process.env.AWS_REGION, // e.g., 'us-east-1'
+    region: "us-east-1",
+    endpoint: FILEBASE_ENDPOINT,
     credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        accessKeyId: FILEBASE_ACCESS_KEY_ID,
+        secretAccessKey: FILEBASE_SECRET_ACCESS_KEY,
     },
+    forcePathStyle: true,
 });
 
 // 📂 Multer Configuration for Memory Storage
-const storage = multer.memoryStorage(); // Store files in memory instead of disk
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage,
@@ -35,54 +43,46 @@ const upload = multer({
     },
 });
 
-// Utility function to upload file to S3
-const uploadFileToS3 = async (file) => {
-    if (!file) {
-        throw new Error("No file provided");
-    }
+// 🔹 Function to Upload File to Filebase
+const uploadFileToFilebase = async (file) => {
+    if (!file) throw new Error("No file provided");
 
-    const key = `resumes/${Date.now()}-${file.originalname}`; // S3 object key (e.g., 'resumes/resume-123456789.pdf')
+    const key = `resumes/${Date.now()}-${file.originalname}`;
 
     const params = {
-        Bucket: process.env.AWS_S3_BUCKET_NAME, // Your S3 bucket name
+        Bucket: FILEBASE_BUCKET_NAME,
         Key: key,
-        Body: file.buffer, // Use file.buffer from memory storage
-        ContentType: file.mimetype, // Set the content type (e.g., 'application/pdf')
+        Body: file.buffer,
+        ContentType: file.mimetype,
     };
 
     try {
-        const command = new PutObjectCommand(params);
-        await s3Client.send(command); // Upload the file to S3
-        const fileUrl = `https://${params.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`; // Generate the S3 file URL
-        return fileUrl; // Return the S3 file URL
+        await s3Client.send(new PutObjectCommand(params));
+        return `https://${FILEBASE_BUCKET_NAME}.s3.filebase.com/${key}`;
     } catch (err) {
-        console.error("Error uploading file to S3:", err);
-        throw err;
+        console.error("Error uploading file to Filebase:", err);
+        throw new Error("Failed to upload file to Filebase.");
     }
 };
 
-// 🟢 Apply for a job
+// 🟢 Apply for a Job
 router.post("/apply", upload.single("resume"), async (req, res) => {
     try {
         const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } = req.body;
 
-        // Check if required fields are present
         if (!jobId || !firstName || !lastName || !email) {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
-        // Ensure resume is uploaded
         if (!req.file) {
             return res.status(400).json({ message: "Resume is required." });
         }
 
-        // Fetch the job to validate custom questions
         const job = await Job.findById(jobId);
         if (!job) {
             return res.status(404).json({ message: "Job not found." });
         }
 
-        // Validate custom questions (if any)
         if (job.customQuestions && job.customQuestions.length > 0) {
             const requiredQuestions = job.customQuestions.filter((q) => q.required);
             for (const question of requiredQuestions) {
@@ -94,23 +94,22 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             }
         }
 
-        // Upload the resume to S3
-        const resumeUrl = await uploadFileToS3(req.file);
+        // 🔹 Upload Resume to Filebase
+        const resumeUrl = await uploadFileToFilebase(req.file);
 
-        // Create a new job application
+        // 🔹 Save Job Application
         const newApplication = new JobApplication({
             jobId,
             firstName,
             lastName,
             email,
-            resume: resumeUrl, // Store S3 file URL
+            resume: resumeUrl, // Filebase URL
             coverLetter,
             customQuestionsAnswers: new Map(Object.entries(customQuestionsAnswers || {})), // Convert to Map
         });
 
         await newApplication.save();
 
-        // Simulated Notification (Replace with actual logic)
         console.log(`📢 Notification: Candidate ${firstName} ${lastName} applied for Job ${jobId}`);
 
         res.status(201).json({ message: "Application submitted successfully.", application: newApplication });
@@ -124,7 +123,6 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
 router.get("/", async (req, res) => {
     try {
         const applications = await JobApplication.find().populate("jobId", "title company");
-
         res.json(applications);
     } catch (error) {
         console.error(error);
