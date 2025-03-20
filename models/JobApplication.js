@@ -4,7 +4,7 @@ const jobApplicationSchema = new mongoose.Schema(
     {
         candidateId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: "Candidate",
             required: true,
         }, // Reference to the User collection
         jobId: {

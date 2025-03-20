@@ -10,11 +10,13 @@ dotenv.config();
 const app = express();
 
 // ✅ Enable CORS for frontend requests
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-}));
+app.use(
+    cors({
+        origin: ["https://hirebuddy-hr.vercel.app", "http://hirebuddy-candidate.vercel.app"],
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        credentials: true,
+    })
+);
 
 app.use(express.json());
 app.use("/api/jobs", jobRoutes);
