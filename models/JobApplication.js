@@ -16,7 +16,7 @@ const jobApplicationSchema = new mongoose.Schema(
         coverLetter: { type: String, default: "" }, // Optional cover letter
         firstName: { type: String, required: true }, // Candidate's first name
         lastName: { type: String, required: true }, // Candidate's last name
-        email: { type: String, required: true }, // Candidate's email
+        email: { type: String, required: true, unique: true }, // Candidate's email (unique)
         status: {
             type: String,
             enum: ["Pending", "Reviewed", "Accepted", "Rejected"],

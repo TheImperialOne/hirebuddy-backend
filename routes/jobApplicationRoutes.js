@@ -1,20 +1,31 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js"; // Import Job model to fetch custom questions
 
 const router = express.Router();
 
-// 📂 Multer Configuration for Resume Uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/resumes/"); // Store resumes in "uploads/resumes/"
+// 🔹 Filebase Configuration (Hardcoded Credentials)
+const FILEBASE_ACCESS_KEY_ID = "B5E83AB22FD7BF704F72";
+const FILEBASE_SECRET_ACCESS_KEY = "Kb3f9XTFUfNrlcxNS6UGqWiNUJNDKrBqxwf1pn9i";
+const FILEBASE_BUCKET_NAME = "hirebuddy-resumes";
+const FILEBASE_ENDPOINT = "https://s3.filebase.com";
+
+// 🔹 Configure Filebase S3 Client
+const s3Client = new S3Client({
+    region: "us-east-1",
+    endpoint: FILEBASE_ENDPOINT,
+    credentials: {
+        accessKeyId: FILEBASE_ACCESS_KEY_ID,
+        secretAccessKey: FILEBASE_SECRET_ACCESS_KEY,
     },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`); // Unique file name
-    },
+    forcePathStyle: true,
 });
+
+// 📂 Multer Configuration for Memory Storage
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage,
@@ -32,30 +43,46 @@ const upload = multer({
     },
 });
 
-// 🟢 Apply for a job
+// 🔹 Function to Upload File to Filebase
+const uploadFileToFilebase = async (file) => {
+    if (!file) throw new Error("No file provided");
+
+    const key = `resumes/${Date.now()}-${file.originalname}`;
+
+    const params = {
+        Bucket: FILEBASE_BUCKET_NAME,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+    };
+
+    try {
+        await s3Client.send(new PutObjectCommand(params));
+        return `https://${FILEBASE_BUCKET_NAME}.s3.filebase.com/${key}`;
+    } catch (err) {
+        console.error("Error uploading file to Filebase:", err);
+        throw new Error("Failed to upload file to Filebase.");
+    }
+};
+
+// 🟢 Apply for a Job
 router.post("/apply", upload.single("resume"), async (req, res) => {
     try {
-        const { candidateId, jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } =
-            req.body;
+        const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } = req.body;
 
-        // Check if the candidate has already applied
-        const existingApplication = await JobApplication.findOne({ candidateId, jobId });
-        if (existingApplication) {
-            return res.status(400).json({ message: "You have already applied for this job." });
+        if (!jobId || !firstName || !lastName || !email) {
+            return res.status(400).json({ message: "Missing required fields." });
         }
 
-        // Ensure resume is uploaded
         if (!req.file) {
             return res.status(400).json({ message: "Resume is required." });
         }
 
-        // Fetch the job to validate custom questions
         const job = await Job.findById(jobId);
         if (!job) {
             return res.status(404).json({ message: "Job not found." });
         }
 
-        // Validate custom questions (if any)
         if (job.customQuestions && job.customQuestions.length > 0) {
             const requiredQuestions = job.customQuestions.filter((q) => q.required);
             for (const question of requiredQuestions) {
@@ -67,21 +94,22 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             }
         }
 
-        // Create a new job application
+        // 🔹 Upload Resume to Filebase
+        const resumeUrl = await uploadFileToFilebase(req.file);
+
+        // 🔹 Save Job Application
         const newApplication = new JobApplication({
-            candidateId,
             jobId,
             firstName,
             lastName,
             email,
-            resume: req.file.path, // Store file path
+            resume: resumeUrl, // Filebase URL
             coverLetter,
-            customQuestionsAnswers, // Store answers to custom questions
+            customQuestionsAnswers: new Map(Object.entries(customQuestionsAnswers || {})), // Convert to Map
         });
 
         await newApplication.save();
 
-        // Simulated Notification (Replace with actual logic)
         console.log(`📢 Notification: Candidate ${firstName} ${lastName} applied for Job ${jobId}`);
 
         res.status(201).json({ message: "Application submitted successfully.", application: newApplication });
@@ -94,10 +122,7 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
 // 🟢 Get all job applications
 router.get("/", async (req, res) => {
     try {
-        const applications = await JobApplication.find()
-            .populate("candidateId", "firstName lastName email")
-            .populate("jobId", "title company");
-
+        const applications = await JobApplication.find().populate("jobId", "title company");
         res.json(applications);
     } catch (error) {
         console.error(error);
@@ -108,9 +133,7 @@ router.get("/", async (req, res) => {
 // 🟢 Get a specific job application
 router.get("/:id", async (req, res) => {
     try {
-        const application = await JobApplication.findById(req.params.id)
-            .populate("candidateId", "firstName lastName email")
-            .populate("jobId", "title company");
+        const application = await JobApplication.findById(req.params.id).populate("jobId", "title company");
 
         if (!application) {
             return res.status(404).json({ message: "Application not found." });

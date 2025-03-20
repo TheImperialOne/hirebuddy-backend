@@ -3,7 +3,6 @@ import mongoose from "mongoose";  // Use ES import instead of require
 // Define the Candidate schema
 const candidateSchema = new mongoose.Schema(
     {
-        firebaseUID: { type: String, unique: true, required: true },
         firstName: {
             type: String,
             required: true,

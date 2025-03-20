@@ -1,27 +1,21 @@
-// controllers/candidateController.js
 import Candidate from "../models/Candidate.js";  // Import the Candidate model
-import { getAuth } from "firebase-admin/auth";
 
-// Create a new candidate using data from Firebase
+// Create a new candidate
 const createCandidate = async (req, res) => {
     console.log("Received request:", req.body);
 
-    // Extract Firebase UID from the request user (which was added by the verifyFirebaseToken middleware)
-    const { uid, email } = req.user;
-
-    // Assuming firstName, lastName are in the request body
-    const { firstName, lastName } = req.body;
+    // Extract data from the request body
+    const { firstName, lastName, email } = req.body;
 
     try {
         // Check if the candidate already exists
-        const existingCandidate = await Candidate.findOne({ firebaseUID: uid });
+        const existingCandidate = await Candidate.findOne({ email });
         if (existingCandidate) {
             return res.status(400).json({ message: "Candidate already exists" });
         }
 
         // Create new candidate
         const newCandidate = new Candidate({
-            firebaseUID: uid,
             firstName,
             lastName,
             email,
@@ -41,10 +35,11 @@ const createCandidate = async (req, res) => {
     }
 };
 
-// Get the current logged-in candidate based on Firebase UID
-const getCandidateByUID = async (req, res) => {
+// Get the current logged-in candidate based on email
+const getCandidateByEmail = async (req, res) => {
     try {
-        const candidate = await Candidate.findOne({ firebaseUID: req.user.uid });
+        const { email } = req.user; // Assuming email is passed in the request user object
+        const candidate = await Candidate.findOne({ email });
         if (!candidate) {
             return res.status(404).json({ message: "Candidate not found" });
         }
@@ -57,4 +52,4 @@ const getCandidateByUID = async (req, res) => {
     }
 };
 
-export { createCandidate, getCandidateByUID };
+export { createCandidate, getCandidateByEmail };

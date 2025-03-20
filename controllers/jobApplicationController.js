@@ -19,6 +19,12 @@ export const createJobApplication = async (req, res) => {
             return res.status(404).json({ message: "Job not found" });
         }
 
+        // Check if the candidate has already applied for this job
+        const existingApplication = await JobApplication.findOne({ email, jobId });
+        if (existingApplication) {
+            return res.status(400).json({ message: "You have already applied for this job." });
+        }
+
         // Validate custom questions (if any)
         if (job.customQuestions && job.customQuestions.length > 0) {
             const requiredQuestions = job.customQuestions.filter((q) => q.required);
@@ -36,7 +42,6 @@ export const createJobApplication = async (req, res) => {
 
         // Create the job application
         const jobApplication = new JobApplication({
-            candidateId: req.user._id, // Assuming the candidate is authenticated
             jobId,
             resume: resumePath,
             coverLetter,
@@ -61,10 +66,7 @@ export const getJobApplicationsForJob = async (req, res) => {
         const { jobId } = req.params;
 
         // Fetch job applications for the specified job
-        const jobApplications = await JobApplication.find({ jobId }).populate(
-            "candidateId",
-            "firstName lastName email"
-        );
+        const jobApplications = await JobApplication.find({ jobId });
 
         res.status(200).json(jobApplications);
     } catch (error) {
@@ -79,10 +81,7 @@ export const getJobApplicationById = async (req, res) => {
         const { applicationId } = req.params;
 
         // Fetch the job application
-        const jobApplication = await JobApplication.findById(applicationId).populate(
-            "candidateId",
-            "firstName lastName email"
-        );
+        const jobApplication = await JobApplication.findById(applicationId);
 
         if (!jobApplication) {
             return res.status(404).json({ message: "Job application not found" });
