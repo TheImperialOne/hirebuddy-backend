@@ -12,7 +12,7 @@ const app = express();
 // ✅ Enable CORS for frontend requests
 app.use(
     cors({
-        origin: ["https://hirebuddy-hr.vercel.app", "http://hirebuddy-candidate.vercel.app"],
+        origin: "*",
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true,
     })
