@@ -38,6 +38,7 @@ const createCandidate = async (req, res) => {
 // Get the current logged-in candidate based on email
 const getCandidateByEmail = async (req, res) => {
     try {
+        console.log("req.user:", req.user); // Debugging: Log req.user
         const { email } = req.user; // Assuming email is passed in the request user object
         const candidate = await Candidate.findOne({ email });
         if (!candidate) {
