@@ -7,6 +7,6 @@ const router = express.Router();
 router.post("/", createCandidate);
 
 // Route to get candidate details by email
-router.get("/me", getCandidateByEmail);
+router.get("/", getCandidateByEmail); // Updated route to match `/api/candidates?email=...`
 
 export default router;
