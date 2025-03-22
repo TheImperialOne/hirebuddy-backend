@@ -34,6 +34,24 @@ export const createCandidate = async (req, res) => {
     }
 };
 
+// Get candidate by email (query parameter)
+export const getCandidateByEmailQuery = async (req, res) => {
+    const { email } = req.query; // Extract email from query parameters
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    try {
+        const candidate = await Candidate.findOne({ email });
+        if (!candidate) {
+            return res.status(404).json({ message: "Candidate not found" });
+        }
+        res.status(200).json(candidate);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching candidate", error: error.message });
+    }
+};
+
 // Get the current logged-in candidate based on email
 export const getCandidateByEmail = async (req, res) => {
     try {
