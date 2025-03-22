@@ -5,11 +5,11 @@ import { uploadFile } from "../utils/fileUpload.js"; // Utility for handling fil
 // Create a new job application
 export const createJobApplication = async (req, res) => {
     try {
-        const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } = req.body;
-        const resumeFile = req.file; // Resume file from multer or similar middleware
+        const { jobId, candidateId, coverLetter, customQuestionsAnswers } = req.body;
+        const resumeFile = req.file;
 
         // Validate required fields
-        if (!jobId || !firstName || !lastName || !email || !resumeFile) {
+        if (!jobId || !candidateId || !resumeFile) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
@@ -20,7 +20,7 @@ export const createJobApplication = async (req, res) => {
         }
 
         // Check if the candidate has already applied for this job
-        const existingApplication = await JobApplication.findOne({ email, jobId });
+        const existingApplication = await JobApplication.findOne({ candidateId, jobId });
         if (existingApplication) {
             return res.status(400).json({ message: "You have already applied for this job." });
         }
@@ -43,11 +43,9 @@ export const createJobApplication = async (req, res) => {
         // Create the job application
         const jobApplication = new JobApplication({
             jobId,
+            candidateId,
             resume: resumePath,
             coverLetter,
-            firstName,
-            lastName,
-            email,
             customQuestionsAnswers,
         });
 
@@ -56,9 +54,10 @@ export const createJobApplication = async (req, res) => {
         res.status(201).json({ message: "Job application submitted successfully", jobApplication });
     } catch (error) {
         console.error("Error creating job application:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 // Get all job applications for a specific job (for HR/admin)
 export const getJobApplicationsForJob = async (req, res) => {

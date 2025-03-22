@@ -1,10 +1,9 @@
-import Candidate from "../models/Candidate.js";  // Import the Candidate model
+import Candidate from "../models/Candidate.js";
 
 // Create a new candidate
-const createCandidate = async (req, res) => {
+export const createCandidate = async (req, res) => {
     console.log("Received request:", req.body);
 
-    // Extract data from the request body
     const { firstName, lastName, email } = req.body;
 
     try {
@@ -23,12 +22,12 @@ const createCandidate = async (req, res) => {
 
         await newCandidate.save();
 
-        res.status(201).send({
+        res.status(201).json({
             message: "Candidate created successfully",
             candidate: newCandidate,
         });
     } catch (err) {
-        res.status(400).send({
+        res.status(400).json({
             message: "Error creating candidate",
             error: err.message,
         });
@@ -36,21 +35,19 @@ const createCandidate = async (req, res) => {
 };
 
 // Get the current logged-in candidate based on email
-const getCandidateByEmail = async (req, res) => {
+export const getCandidateByEmail = async (req, res) => {
     try {
-        console.log("req.user:", req.user); // Debugging: Log req.user
-        const { email } = req.user; // Assuming email is passed in the request user object
+        const { email } = req.query; // Extract email from query parameters
+        if (!email || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+            return res.status(400).json({ message: "Invalid email address" });
+        }
+
         const candidate = await Candidate.findOne({ email });
         if (!candidate) {
             return res.status(404).json({ message: "Candidate not found" });
         }
         res.status(200).json(candidate);
-    } catch (err) {
-        res.status(400).send({
-            message: "Error fetching candidate",
-            error: err.message,
-        });
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching candidate", error: error.message });
     }
 };
-
-export { createCandidate, getCandidateByEmail };
