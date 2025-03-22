@@ -68,9 +68,9 @@ const uploadFileToFilebase = async (file) => {
 // 🟢 Apply for a Job
 router.post("/apply", upload.single("resume"), async (req, res) => {
     try {
-        const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers } = req.body;
+        const { jobId, firstName, lastName, email, coverLetter, customQuestionsAnswers, candidateId } = req.body;
 
-        if (!jobId || !firstName || !lastName || !email) {
+        if (!jobId || !firstName || !lastName || !email || !candidateId) {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
@@ -94,18 +94,19 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
             }
         }
 
-        // 🔹 Upload Resume to Filebase
+        // Upload Resume to Filebase
         const resumeUrl = await uploadFileToFilebase(req.file);
 
-        // 🔹 Save Job Application
+        // Save Job Application
         const newApplication = new JobApplication({
             jobId,
+            candidateId, // Include candidateId
             firstName,
             lastName,
             email,
-            resume: resumeUrl, // Filebase URL
+            resume: resumeUrl,
             coverLetter,
-            customQuestionsAnswers: new Map(Object.entries(customQuestionsAnswers || {})), // Convert to Map
+            customQuestionsAnswers: new Map(Object.entries(customQuestionsAnswers || {})),
         });
 
         await newApplication.save();
