@@ -86,7 +86,7 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
         if (job.customQuestions && job.customQuestions.length > 0) {
             const requiredQuestions = job.customQuestions.filter((q) => q.required);
             for (const question of requiredQuestions) {
-                if (!customQuestionsAnswers || !customQuestionsAnswers[question.question]) {
+                if (!parsedAnswers || !parsedAnswers[question.question]) {
                     return res.status(400).json({
                         message: `Missing answer for required question: ${question.question}`,
                     });
