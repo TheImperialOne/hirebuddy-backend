@@ -82,6 +82,14 @@ router.post("/apply", upload.single("resume"), async (req, res) => {
         if (!job) {
             return res.status(404).json({ message: "Job not found." });
         }
+        let parsedAnswers;
+        try {
+            parsedAnswers = typeof customQuestionsAnswers === "string"
+                ? JSON.parse(customQuestionsAnswers)
+                : customQuestionsAnswers;
+        } catch (err) {
+            return res.status(400).json({ message: "Invalid format for customQuestionsAnswers." });
+        }
 
         if (job.customQuestions && job.customQuestions.length > 0) {
             const requiredQuestions = job.customQuestions.filter((q) => q.required);
